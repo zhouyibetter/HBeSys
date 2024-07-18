@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--配置Mapper接口的全限定的名称-->
+<mapper namespace="com.zyq.mapper.DoctorMapper">
+    <select id="getDoctorList" resultMap="getDoctorInfo">
+        select * from doctors d LEFT JOIN departments dt on d.department_id = dt.department_id
+        LEFT JOIN professional_titles pt on d.professional_title_id = pt.id
+        <where>
+            <if test="dname != null and dname != ''">
+                and name like concat("%",#{dname},"%")
+            </if>
+            <if test="jobnum != null and jobnum != ''">
+                and job_number = #{jobnum}
+            </if>
+            <if test="did != null and did != '-1'">
+                and d.department_id = #{did}
+            </if>
+            <if test="pid != null and pid != '-1'">
+                and d.professional_title_id = #{pid}
+            </if>
+            and d.state != 0
+        </where>
+    </select>
+    <resultMap id="getDoctorInfo" type="com.zyq.pojo.Doctor" autoMapping="true">
+        <id property="doctorId" column="doctor_id"></id>
+        <!--科室-->
+        <association property="department" javaType="com.zyq.pojo.Department"  autoMapping="true"></association>
+        <!--职称-->
+        <association property="professionalTitles" javaType="com.zyq.pojo.ProfessionalTitles"  autoMapping="true"></association>
+    </resultMap>
+
+
+    <select id="getDoctorAllSchedule" resultMap="getDoctorAllScheduleInfo">
+        select * from doctor_schedule d LEFT JOIN doctors do on d.doctor_id=do.doctor_id
+    </select>
+    <resultMap id="getDoctorAllScheduleInfo" type="com.zyq.pojo.DoctorSchedule" autoMapping="true">
+        <!--column:表中列字段的名称 property:实体类中属性-->
+        <!--医生基础属性-->
+        <id column="doctorId" property="doctor_id" ></id>
+        <!--一对一标签-->
+        <!--科室-->
+        <association property="doctors" javaType="com.zyq.pojo.Doctor" autoMapping="true"></association>
+    </resultMap>
+
+    <select id="getScheduleById" resultMap="getScheduleByIdInfo">
+        select * from doctor_schedule d LEFT JOIN doctors do on d.doctor_id=do.doctor_id
+        <where>
+            d.department_id=#{departId}
+        </where>
+    </select>
+    <resultMap id="getScheduleByIdInfo" type="com.zyq.pojo.DoctorSchedule" autoMapping="true">
+        <!--column:表中列字段的名称 property:实体类中属性-->
+        <!--医生基础属性-->
+        <id property="doctorId" column="doctorId"></id>
+        <!--一对一标签-->
+        <!--科室-->
+        <association property="doctor" javaType="com.zyq.pojo.Doctor" autoMapping="true"></association>
+    </resultMap>
+
+    <!--根据时间和科室联表查找安排-->
+    <select id="getDoctorScheduleList" resultMap="getDoctorScheduleListInfo">
+        select * from doctors AS doc INNER JOIN doctor_schedule d on doc.doctor_id=d.doctor_id
+        <where>
+            <if test="departmentId != null and departmentId != '-1'">
+                and doc.department_id = #{departmentId}
+            </if>
+            <if test="date != null and date != '-1'">
+                and d.date = #{date}
+            </if>
+        </where>
+    </select>
+    <resultMap id="getDoctorScheduleListInfo" type="com.zyq.pojo.DoctorSchedule" autoMapping="true">
+        <!--column:表中列字段的名称 property:实体类中属性-->
+        <!--医生基础属性-->
+        <id property="scheduleId" column="schedule_id" ></id>
+        <!--一对一标签-->
+        <!--科室-->
+        <association property="doctor" javaType="com.zyq.pojo.Doctor" autoMapping="true"></association>
+    </resultMap>
+
+</mapper>

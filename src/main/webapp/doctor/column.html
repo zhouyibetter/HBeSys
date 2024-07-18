@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="renderer" content="webkit">
+    <title>会诊清单</title>
+    <link rel="stylesheet" href="../css/pintuer.css">
+    <link rel="stylesheet" href="../css/admin.css">
+    <script src="../js/jquery.js"></script>
+    <script src="../js/pintuer.js"></script>
+
+    <style>
+        /* 模态框背景 */
+        .modal {
+            display: none; /* 默认隐藏 */
+            position: fixed; /* 固定定位 */
+            z-index: 1; /* 位于顶层 */
+            left: 0;
+            top: 0;
+            width: 100%; /* 宽度为全屏 */
+            height: 100%; /* 高度为全屏 */
+            overflow: auto; /* 如果需要滚动条 */
+            background-color: rgb(0, 0, 0); /* 背景色 */
+            background-color: rgba(0, 0, 0, 0.4); /* 黑色背景带有一定的透明度 */
+        }
+
+        .msgBox {
+            display: none; /* 默认隐藏 */
+            position: fixed; /* 固定定位 */
+            z-index: 2; /* 位于顶层 */
+            left: 0;
+            top: 0;
+            width: 100%; /* 宽度为全屏 */
+            height: 100%; /* 高度为全屏 */
+            overflow: auto; /* 如果需要滚动条 */
+            background-color: rgba(0, 0, 0, 0.4); /* 黑色背景带有一定的透明度 */
+        }
+
+        /* 模态框内容 */
+        .msgBox-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* 15% 从顶部和自动水平居中 */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 60%; /* 内容宽度 */
+            border-radius: 15px;
+        }
+
+        /* 模态框内容 */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* 15% 从顶部和自动水平居中 */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* 内容宽度 */
+            border-radius: 15px;
+        }
+
+        /* 关闭按钮 */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="panel admin-panel">
+    <div class="panel-head"><strong class="icon-reorder"> 内容列表</strong></div>
+    <div class="padding border-bottom">
+        <ul class="search" style="padding-left:10px;">
+            <li>搜索：</li>
+            <li>
+                <label>
+                    只查看未完成&nbsp;<input type="checkbox" id="checkbox1" name="state">
+                    只查看完成&nbsp;<input type="checkbox" id="checkbox2" name="state">
+                    处理中&nbsp;<input type="checkbox" id="checkbox3" name="state">
+                </label>
+            </li>
+            <li>
+                <input type="text" placeholder="请输入搜索名称" name="keywords" class="input"
+                       style="width:150px; line-height:17px;display:inline-block"/>
+                <a href="javascript:void(0)" class="button border-main icon-search" onclick="changesearch()"> 搜索</a>
+            </li>
+        </ul>
+    </div>
+    <!-- 模态框 - 详细信息 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close"></span> <br>
+            <p id="detail_content_head" class="tip-title text-center height-small h2">详细信息</p>
+        </div>
+        <!-- 模态框 - sendEmailMsg -->
+        <div id="msgBox" class="msgBox">
+            <div class="msgBox-content container">
+                <span class="close"></span> <br>
+                <p id="email_head" class="h2 text-center">邮件</p>
+                <p id="tip_msg" class="text-center text-main"></p>
+                <div class="margin-bottom">
+                    <label class="text-default">
+                        <span class="text-default" style="display: inline-block ;width: 9%">To:</span>&nbsp;
+                        <input id="msg_to" class="input-auto input" name="To" value=""/>
+                    </label>
+                </div>
+                <div class="margin-bottom">
+                    <label class="h4 text-default">消息头:
+                        <textarea id="msg_subject" style="margin-left: 10% ;width: 90%"
+                                  placeholder="请输入消息头"></textarea>
+                    </label>
+                </div>
+                <div class="margin-bottom">
+                    <label class="h4 text-default">消息体:
+                        <textarea id="msg_body" style="margin-left: 10% ;width: 90%"
+                                  placeholder="请输入消息体"></textarea>
+                    </label>
+                </div>
+                <div class="margin-bottom">
+                    <button class="button input default-color1"
+                       style="height: 50px; background-color: #d4d4d4" onclick="sendEmailMsg()">发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 基础列表信息 -->
+    <table class="table table-hover text-center">
+        <tr id="tr_head">
+            <th>编号</th>
+            <th>患者id</th>
+            <th>患者名称</th>
+            <th>会诊时间</th>
+            <th>会诊状态</th>
+            <th width="18%">操作</th>
+        </tr>
+    </table>
+</div>
+<script>
+    $(document).ready(function () {
+        // 异步请求获取会诊清单
+        $.getJSON('getConsultationConciseList', function (pageInfo) {
+            let res = ""; // 使用字符串来累积所有 <tr>
+
+            for (let i = 0; i < pageInfo.list.length; ++i) {
+                const item = pageInfo.list[i];
+                res += `<tr id=tr_${item.consultationId}>
+                    <td>${i + 1}</td>
+                    <td>${item.patientId}</td>
+                    <td>${item.patientName}</td>
+                    <td>${item.consultationTime}</td>
+                    <td>${item.consultationStatus == null ? "未知" : item.consultationStatus}</td>
+                    <td>
+                        <button class="button border-blue" onclick="showDetail(${item.consultationId})">
+                            <span class="icon-angle-down"></span>&nbsp;详细信息
+                        </button>
+                    </td></tr>`
+            }
+
+            // 分页信息
+            res += `<tr>
+                <td colspan="6">
+                    <div class="pagelist">
+                        <span class="border-main">总记录数:&nbsp;${pageInfo.total}</span>&nbsp;
+                        <span class="border-main">当前页/总页数:&nbsp;${pageInfo.pageNum}/${pageInfo.pages}</span>&nbsp;
+                    <a href="javascript:void(0)" onclick="getPage(1)">首页</a>&nbsp;`;
+            if (!pageInfo.isFirstPage) {
+                res += `<a class="border-main" href="javascript:void(0)" onClick="getPage(${pageInfo.prePage})">上一页</a>&nbsp;&nbsp;`;
+            }
+            if (!pageInfo.isLastPage) {
+                res += `<a class="border-main" href="javascript:void(0)" onclick="getPage(${pageInfo.nextPage})">下一页</a>&nbsp;&nbsp;`;
+            }
+            res += `<a class="border-main" href="javascript:void(0)" onclick="getPage(${pageInfo.pages})">尾页</a>`
+            res += `</div></td></tr>`;
+
+            $("#tr_head").after(res);
+        });
+    });
+
+    function showDetail(consultationId) {
+        $("#modal").css("display", "block");
+
+        // 获取详细信息包括什么？
+        // 病人的全部信息 + 住院信息
+        $.getJSON('getConsultationDetailInfo', {"consultationId": consultationId}, function (data) {
+            $("#detail_content_head").nextAll().remove();
+
+            let res = `
+            <!--会诊基础信息--->
+            <p class="h3 text-left">会诊基础信息</p>
+            <div class="container border border-back margin-bottom" style="width: 100%">
+                <p>会诊编号:&nbsp; ${data.consultationId}</p>
+                <p>会诊时间:&nbsp; ${data.consultationTime}</p>
+                <p>会诊状态:&nbsp; ${data.consultationStatus == null ? "未知" : data.consultationStatus}</p>
+                <p>${data.isHospitalRegistered == 1 ? "已办理" : "未办理"}住院登记</p>
+                <p>${data.isHospitalRegistered == 1 ? "已" : "未"}住院</p>
+                <div class="content" style="width: 100%">
+                    <textarea class="input" id="updateMedicalAdviceCase" placeholder="请输入医嘱">${data.medicalAdviceCase == null ? "" : data.medicalAdviceCase}</textarea>
+                    <button class="button-small float-right" onclick="updateMedicalAdviceCase(${data.consultationId})">更新医嘱</button>
+                </div>
+            </div>
+            <!--病人的基础信息-->
+            <p class="h3 text-left">病人基础信息</p>
+            <div class="container border border-back margin-bottom" style="width: 100%">
+                <p>病人编号:&nbsp; ${data.patientId}</p>
+                <p>病人姓名:&nbsp; ${data.patientName}</p>`;
+            // 如果用户有预留手机
+            if (data.patientPhone != null && data.patientPhone != "") {
+                res +=
+                    `
+                    <div>
+                        <span style="display: inline-block; width: 89%">
+                            病人手机:&nbsp; ${data.patientPhone}&nbsp;&nbsp;&nbsp;
+                        </span>
+                        <span>
+                            <button class="button-small" onclick="sendShortMsg(${data.patientId == undefined ? "" : data.patientId})">发送短信</button>
+                        </span>
+                    </div>
+                    `
+            }
+            // 病人有预留邮箱
+            if (data.patientEmail != null && data.patientEmail != "") {
+                res +=
+                    `
+                    <div>
+                        <span style="display: inline-block; width: 89%">
+                            病人邮箱:&nbsp; ${data.patientEmail}&nbsp;&nbsp;&nbsp;
+                        </span>
+                        <span>
+                            <button class="button-small" onclick="showEmailBox('${data.patientEmail}')">发送邮箱</button>
+                        </span>
+                    </div>
+                    `
+            }
+            res += `</div>
+            <!--预约状态-->
+            <P class="h3 text-left">预约基础信息</P>
+            <div class="container border border-back margin-bottom" style="width: 100%">
+                <p>预约编号:&nbsp; ${data.appointmentId}</p>
+                <p>预约时间:&nbsp; ${data.appointmentDate}&nbsp;${data.appointmentTime}</p>
+                <p>预约状态:&nbsp; ${data.appointmentStatus}</p>
+            </div>
+            `;
+
+            $("#detail_content_head").after(res);
+        });
+    }
+
+    // 如果需要，也可以在这里添加关闭模态框的功能
+    $(document).ready(function () {
+        $(".close").click(function (event) {
+            event.stopPropagation();
+            var closestModal = $(this).closest('.modal, .msgBox'); // 查找最近的.modal或.msgBox
+            closestModal.hide(); // 隐藏找到的模态框
+        });
+    })
+
+    function updateMedicalAdviceCase(consultationId) {
+        var medicalAdviceCase = $("#updateMedicalAdviceCase").val();
+        /**
+         * @Description 传入会诊的id号，更新医嘱，返回值判断成功与否
+         * @Author zhouyigreat
+         * @Date 2024/7/18
+         */
+        $.get('updateMedicalAdviceCase',
+            {"consultationId": consultationId, "medicalAdviceCase": medicalAdviceCase},
+            function (res) {
+                if (res.success) {
+                    $.getJSON('getConsultationDetailInfo', {"consultationId": consultationId}, function (data) {
+                        $("#detail_content_head").nextAll().remove();
+
+                        let res = `
+                        <!--会诊基础信息--->
+                        <p class="h3 text-left">会诊基础信息</p>
+                        <div class="container border border-back margin-bottom" style="width: 100%">
+                            <p>会诊编号:&nbsp; ${data.consultationId}</p>
+                            <p>会诊时间:&nbsp; ${data.consultationTime}</p>
+                            <p>会诊状态:&nbsp; ${data.consultationStatus == null ? "未知" : data.consultationStatus}</p>
+                            <p>${data.isHospitalRegistered == 1 ? "已办理" : "未办理"}住院登记</p>
+                            <p>${data.isHospitalRegistered == 1 ? "已" : "未"}住院</p>
+                            <div class="content" style="width: 100%">
+                                <textarea class="input" id="updateMedicalAdviceCase" placeholder="请输入医嘱">${data.medicalAdviceCase == null ? "" : data.medicalAdviceCase}</textarea>
+                                <button class="button-small float-right" onclick="updateMedicalAdviceCase(${data.consultationId})">更新医嘱</button>
+                            </div>
+                        </div>
+                        <!--病人的基础信息-->
+                        <p class="h3 text-left">病人基础信息</p>
+                        <div class="container border border-back margin-bottom" style="width: 100%">
+                            <p>病人编号:&nbsp; ${data.patientId}</p>
+                            <p>病人姓名:&nbsp; ${data.patientName}</p>`;
+                        // 如果用户有预留手机
+                        if (data.patientPhone != undefined) {
+                            res +=
+                                `
+                                <div>
+                                    <span style="display: inline-block; width: 89%">
+                                        病人手机:&nbsp; ${data.patientPhone}&nbsp;&nbsp;&nbsp;
+                                    </span>
+                                    <span>
+                                        <button class="button-small" onclick="sendShortMsg(${data.patientId == undefined ? "" : data.patientId})">发送短信</button>
+                                    </span>
+                                </div>
+                                `
+                        }
+                        // 病人有预留邮箱
+                        if (data.patientEmail != undefined) {
+                            res +=
+                                `
+                                <div>
+                                    <span style="display: inline-block; width: 89%">
+                                        病人邮箱:&nbsp; ${data.patientEmail}&nbsp;&nbsp;&nbsp;
+                                    </span>
+                                    <span>
+                                        <button class="button-small" onclick="showEmailBox('${data.patientEmail}')">发送邮箱</button>
+                                    </span>
+                                </div>
+                                `
+                        }
+                        res += `                                                                                                                                    </div>
+                        <!--预约状态-->
+                        <P class="h3 text-left">预约基础信息</P>
+                        <div class="container border border-back margin-bottom" style="width: 100%">
+                            <p>预约编号:&nbsp; ${data.appointmentId}</p>
+                            <p>预约时间:&nbsp; ${data.appointmentDate}&nbsp;${data.appointmentTime}</p>
+                            <p>预约状态:&nbsp; ${data.appointmentStatus}</p>
+                        </div>
+                        `;
+                        $("#detail_content_head").after(res);
+                    });
+                } else {
+                    alert("更新失败");
+                }
+            });
+    }
+
+    function showEmailBox(patientEmail) {
+        // 清理上次登录留下的内容
+        $("#tip_msg").val("");
+
+        $("#msgBox").show();
+
+        // 填入To 默认的邮件地址
+        $("#msg_to").val(patientEmail);
+    }
+
+    function sendEmailMsg() {
+        // 获取医生填入的信息
+        var msg_to = $("#msg_to").val();
+        var msg_subject = $("#msg_subject").val();
+        var msg_body = $("#msg_body").val();
+        var msg_data = {"To": msg_to, "Subject": msg_subject, "Body": msg_body};
+
+        $.get('sendEmail',
+            msg_data,
+            function (res) {
+                if (res.success) {
+                    $("#tip_msg").append("<p>发送成功</p>")
+                } else {
+                    $("#tip_msg").append("<p>发送失败</p>")
+                }
+            });
+    }
+</script>
+</body>
+</html>

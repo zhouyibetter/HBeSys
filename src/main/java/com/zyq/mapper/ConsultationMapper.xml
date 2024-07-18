@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.zyq.mapper.ConsultationMapper">
+    <select id="getConsultationConciseList" resultMap="getConsultationConciseListHash">
+        SELECT c.consultation_id AS consultation_id,
+               c.patient_id AS patient_id,
+               p.name AS name,
+               c.consultation_time AS consultation_time,
+               c.consultation_status AS c_consultation_status
+        FROM consultation as c
+                 LEFT JOIN patients AS p ON c.patient_id = p.patient_id
+                 LEFT JOIN appointments AS a ON a.patient_id = c.patient_id AND a.doctor_id = c.doctor_id
+        WHERE c.doctor_id = #{doctorId}
+    </select>
+
+    <resultMap id="getConsultationConciseListHash" type="com.zyq.pojo.Consultation">
+        <id property="consultationId" column="consultation_id"/>
+        <result property="patientId" column="patient_id"/>
+        <result property="patientName" column="name"/>
+        <result property="consultationTime" column="consultation_time"/>
+        <result property="consultationStatus" column="c_consultation_status"/>
+    </resultMap>
+
+    <select id="getConsultationDetailInfo" resultMap="getConsultationDetailInfoHash">
+        SELECT c.consultation_id AS c_consultation_id,
+               c.patient_id AS c_patient_id,
+               c.doctor_id AS c_doctor_id,
+               c.consultation_time AS c_consultation_time,
+               c.is_hospital_registered AS c_is_hospital_registered,
+               c.is_hospitalized AS c_is_hospitalized,
+               c.medical_advice_case AS c_medical_advice_case,
+               c.consultation_status AS c_consultation_status,
+               d.name AS d_name,
+               d.phone AS d_phone,
+               d.email AS d_email,
+               p.name AS p_name,
+               p.phone AS p_phone,
+               p.email AS p_email,
+               a.appointment_id AS a_appointment_id,
+               a.appointment_date AS a_appointment_data,
+               a.appointment_time AS a_appointment_time,
+               a.status AS a_status
+        FROM consultation as c
+            LEFT JOIN doctors AS d ON c.doctor_id = d.doctor_id
+            LEFT JOIN patients AS p ON c.patient_id = p.patient_id
+            LEFT JOIN appointments AS a ON a.patient_id = c.patient_id AND a.doctor_id = c.doctor_id
+        WHERE c.consultation_id = #{consultation_id}
+    </select>
+
+    <resultMap id="getConsultationDetailInfoHash" type="com.zyq.pojo.Consultation">
+        <!--就诊基础情况-->
+        <id property="consultationId" column="c_consultation_id"/>
+        <result property="patientId" column="c_patient_id"/>
+        <result property="doctorId" column="c_doctor_id"/>
+        <result property="consultationTime" column="c_consultation_time"/>
+        <result property="isHospitalRegistered" column="c_is_hospital_registered"/>
+        <result property="isHospitalized" column="c_is_hospitalized"/>
+        <result property="medicalAdviceCase" column="c_medical_advice_case"/>
+        <result property="consultationStatus" column="c_consultation_status"/>
+        <!--医生信息-->
+        <result property="doctorName" column="d_name"/>
+        <result property="doctorPhone" column="d_phone"/>
+        <result property="doctorEmail" column="p_email"/>
+        <!--病人姓名-->
+        <result property="patientName" column="p_name"/>
+        <result property="patientPhone" column="p_phone"/>
+        <result property="patientEmail" column="p_email"/>
+        <!--预约情况-->
+        <result property="appointmentId" column="a_appointment_id"/>
+        <result property="appointmentDate" column="a_appointment_data"/>
+        <result property="appointmentTime" column="a_appointment_time"/>
+        <result property="appointmentStatus" column="a_status"/>
+    </resultMap>
+
+</mapper>
